@@ -1,0 +1,94 @@
+name: Sync control plane directly to cluster
+on:
+  workflow_dispatch:
+    inputs:
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and general context (blueprint, run id, etc...)
+        type: string
+jobs:
+  synchornize-control-plane:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+      - uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Synchronizing process of resource state to cluster started 🏃🏻‍♂️"
+      - name: Handle payload
+        env:
+          INPUTS_FOLDER: ./output
+          PORT_PAYLOAD: ${{ inputs.port_payload }}
+        run: |
+            mkdir output
+            python3 -m pip install --upgrade pip
+            pip install pyyaml
+            python3 .github/upsert-yaml-file.py false
+      - uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Applying resource state to cluster 🚀"
+      - name: apply to cluster
+        uses: steebchen/kubectl@v2.0.0
+        id: apply
+        if: ${{ fromJson(inputs.port_payload).payload.action.trigger != 'DELETE' }}
+        with: 
+          config: ${{ secrets.KUBE_CONFIG }}
+          command: apply -f ./output
+      - name: delete from cluster
+        uses: steebchen/kubectl@v2.0.0
+        if: ${{ fromJson(inputs.port_payload).payload.action.trigger == 'DELETE' }}
+        id: delete
+        with: 
+          config: ${{ secrets.KUBE_CONFIG }}
+          command: delete -f ./output
+      - uses: port-labs/port-github-action@v1
+        if: ${{ fromJson(inputs.port_payload).payload.action.trigger != 'DELETE' }}
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Waiting for the resource state to be ready 🕒"
+      - name: Check resource readiness
+        uses: steebchen/kubectl@v2.0.0
+        if: ${{ fromJson(inputs.port_payload).payload.action.trigger != 'DELETE' }}
+        id: check
+        with: 
+          config: ${{ secrets.KUBE_CONFIG }}
+          command: wait --for condition=ready --timeout=5m -f ./output
+      - uses: port-labs/port-github-action@v1
+        if: success()
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Synchronizing process of resource state to cluster completed 🏁✅"
+      - uses: port-labs/port-github-action@v1
+        if: failure()
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: | 
+            Synchronizing process of resource state to cluster failed ❌ 
+            Check the job run logs in Github to learn more 📜
+              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+

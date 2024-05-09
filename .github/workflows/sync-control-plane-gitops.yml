@@ -1,0 +1,85 @@
+name: Sync control plane gitops
+permissions:
+  contents: write
+  pull-requests: write
+on:
+  workflow_dispatch:
+    inputs:
+      port_payload:
+        required: true
+        description: Port's payload, including details for who triggered the action and general context (blueprint, run id, etc...)
+        type: string
+      folder:
+        required: true
+        description: Folder where the resource will be stored
+        default: "./argocd-apps/control-plane/manifests"
+        type: string
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Creating branch with name runs/${{fromJson(inputs.port_payload).context.runId}} 🏃🏻‍♂️"
+      - name: create-branch
+        run: |
+          git checkout -b runs/${{fromJson(inputs.port_payload).context.runId}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+      - name: Handle payload
+        env:
+          INPUTS_FOLDER: ${{ inputs.folder }}
+          PORT_PAYLOAD: ${{ inputs.port_payload }}
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install pyyaml
+          python3 .github/upsert-yaml-file.py true
+      - uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Creating a PR with the changes of the new resource in folder ${{ inputs.folder }} 🚀"
+      - name: create pr 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: ${{ fromJson(inputs.port_payload).payload.action.trigger }} resource by ${{fromJson(inputs.port_payload).trigger.by.user.email}}"
+          git push origin runs/${{fromJson(inputs.port_payload).context.runId}}
+          gh pr create --title "chore: ${{ fromJson(inputs.port_payload).payload.action.trigger }} resource" --body "This PR was created by the workflow triggered by ${{fromJson(inputs.port_payload).trigger.by.user.email}}" --base main --head runs/${{fromJson(inputs.port_payload).context.runId}}
+      - uses: port-labs/port-github-action@v1
+        if: success()
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: "Created a new PR succesfully ✅"
+      - uses: port-labs/port-github-action@v1
+        if: failure()
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_payload).context.runId}} 
+          icon: GithubActions
+          logMessage: | 
+            Failed to create a new PR ❌
+            Check the job run logs in Github to learn more 📜:
+              ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
