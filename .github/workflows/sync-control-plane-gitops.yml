@@ -53,9 +53,9 @@ jobs:
             yaml_data=$(yq -p json -o yaml temp.json)
             name=$(echo '${{ inputs.manifest }}' | jq .metadata.name)
             if [ "${{ inputs.operation }}" = "DELETE" ]; then
-              rm -f "$folder/$name".yaml
+              rm -f "${{ inputs.folder }}/$name".yaml
             else
-              echo "$yaml_data" > "$folder/$name".yaml
+              echo "$yaml_data" > "${{ inputs.folder }}/$name".yaml
             fi
             rm -f temp.json
       - uses: port-labs/port-github-action@v1
