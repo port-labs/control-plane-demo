@@ -56,7 +56,7 @@ jobs:
         if: ${{ inputs.operation != 'DELETE' }}
         with: 
           config: ${{ secrets.KUBE_CONFIG }}
-          command: ${{ inputs.operation != 'DELETE' && "apply -f ./output" || "delete -f ./output" }} 
+          command: ${{ inputs.operation != 'DELETE' && apply -f ./output || delete -f ./output }} 
       - uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
