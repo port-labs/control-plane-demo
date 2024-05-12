@@ -38,8 +38,8 @@ jobs:
       - name: Write manifest to file
         run: |
             mkdir output
-            json_data="${{ inputs.manifest }}"
-            echo "$json_data" > temp.json
+            echo ${{ inputs.manifest }} > temp.json
+            cat temp.json
             yaml_data=$(yq -p json -o yaml temp.json)
             echo "$yaml_data" > ./output/output.yaml
             cat ./output/output.yaml
