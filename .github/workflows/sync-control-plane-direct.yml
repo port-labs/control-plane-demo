@@ -53,10 +53,10 @@ jobs:
       - name: apply to cluster
         uses: steebchen/kubectl@v2.0.0
         id: apply
-        if: ${{ .inputs.operation != 'DELETE' }}
+        if: ${{ inputs.operation != 'DELETE' }}
         with: 
           config: ${{ secrets.KUBE_CONFIG }}
-          command: ${{ .inputs.operation != 'DELETE' && "apply -f ./output" || "delete -f ./output" }} 
+          command: ${{ inputs.operation != 'DELETE' && "apply -f ./output" || "delete -f ./output" }} 
       - uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
@@ -67,7 +67,7 @@ jobs:
           logMessage: "Waiting for the resource state to be ready 🕒"
       - name: Check resource readiness
         uses: steebchen/kubectl@v2.0.0
-        if: ${{ .inputs.operation != 'DELETE' }}
+        if: ${{ inputs.operation != 'DELETE' }}
         id: check
         with: 
           config: ${{ secrets.KUBE_CONFIG }}
