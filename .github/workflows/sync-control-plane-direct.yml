@@ -39,7 +39,7 @@ jobs:
         run: |
             mkdir output
             json_data="${{ inputs.manifest }}"
-            yaml_data=$(echo $json_data | yq -r -)
+            yaml_data=$(echo $json_data | yq r -)
             echo "$yaml_data" > ./output/output.yaml
             cat ./output/output.yaml
       - uses: port-labs/port-github-action@v1
