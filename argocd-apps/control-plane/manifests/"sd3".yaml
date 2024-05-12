@@ -4,4 +4,4 @@ metadata:
   name: sd3
 spec:
   compositionUpdatePolicy: Automatic
-  location: US
+  location: EU
