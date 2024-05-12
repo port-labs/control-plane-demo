@@ -1,0 +1,7 @@
+apiVersion: database.example.com/v1alpha1
+kind: NoSQL
+metadata:
+  name: sd3
+spec:
+  compositionUpdatePolicy: Automatic
+  location: US
