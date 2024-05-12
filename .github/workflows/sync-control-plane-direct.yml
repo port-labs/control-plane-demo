@@ -39,10 +39,8 @@ jobs:
         run: |
             mkdir output
             echo '${{ inputs.manifest }}' | jq .  > temp.json
-            cat temp.json
             yaml_data=$(yq -p json -o yaml temp.json)
             echo "$yaml_data" > ./output/output.yaml
-            cat ./output/output.yaml
       - uses: port-labs/port-github-action@v1
         with:
           clientId: ${{ secrets.PORT_CLIENT_ID }}
